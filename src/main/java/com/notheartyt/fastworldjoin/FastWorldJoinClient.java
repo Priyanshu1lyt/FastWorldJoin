@@ -15,6 +15,10 @@ public class FastWorldJoinClient implements ClientModInitializer {
     private static FastWorldJoinConfig config;
     private static int waited = 0;
 
+    private static boolean boosted = false;
+    private static int originalViewDistance = 0;
+    private static int restoreCountdown = -1;
+
     @Override
     public void onInitializeClient() {
         config = FastWorldJoinConfig.load();
@@ -23,7 +27,41 @@ public class FastWorldJoinClient implements ClientModInitializer {
     }
 
     private static void onTick(MinecraftClient client) {
-        if (!config.enabled || !(client.currentScreen instanceof LevelLoadingScreen)) {
+        if (!config.enabled) {
+            return;
+        }
+
+        boolean loading = client.currentScreen instanceof LevelLoadingScreen;
+
+        // 1) Lower render distance while the loading screen is up.
+        if (loading) {
+            restoreCountdown = -1;
+            if (!boosted) {
+                int current = client.options.getViewDistance().getValue();
+                if (current > config.joinViewDistance) {
+                    originalViewDistance = current;
+                    client.options.getViewDistance().setValue(config.joinViewDistance);
+                    boosted = true;
+                }
+            }
+        }
+
+        // 2) Restore it a moment after the screen is gone.
+        if (!loading && boosted) {
+            if (client.world == null) {
+                restoreViewDistance(client);
+            } else {
+                if (restoreCountdown < 0) {
+                    restoreCountdown = config.restoreDelayTicks;
+                }
+                if (restoreCountdown-- <= 0) {
+                    restoreViewDistance(client);
+                }
+            }
+        }
+
+        // 3) Close the loading screen as soon as nearby chunks are ready.
+        if (!loading) {
             waited = 0;
             return;
         }
@@ -35,11 +73,16 @@ public class FastWorldJoinClient implements ClientModInitializer {
         if (waited < config.minWaitTicks) {
             return;
         }
-
         if (waited >= config.maxWaitTicks || nearbyChunksReady(client)) {
             client.setScreen(null);
             waited = 0;
         }
+    }
+
+    private static void restoreViewDistance(MinecraftClient client) {
+        client.options.getViewDistance().setValue(originalViewDistance);
+        boosted = false;
+        restoreCountdown = -1;
     }
 
     private static boolean nearbyChunksReady(MinecraftClient client) {
@@ -56,4 +99,4 @@ public class FastWorldJoinClient implements ClientModInitializer {
         }
         return true;
     }
-}
+            }
