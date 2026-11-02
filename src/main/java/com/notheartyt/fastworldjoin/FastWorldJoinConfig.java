@@ -17,6 +17,11 @@ public class FastWorldJoinConfig {
     public int maxWaitTicks = 100;
     public int requiredRadius = 0;
 
+    /** Render distance used only while joining (lower = faster join). */
+    public int joinViewDistance = 4;
+    /** Ticks to wait after joining before restoring your normal render distance (20 = 1 sec). */
+    public int restoreDelayTicks = 40;
+
     public static FastWorldJoinConfig load() {
         FastWorldJoinConfig cfg = new FastWorldJoinConfig();
         try {
@@ -27,10 +32,12 @@ public class FastWorldJoinConfig {
             cfg.requiredRadius = Math.max(0, Math.min(cfg.requiredRadius, 8));
             cfg.minWaitTicks = Math.max(0, cfg.minWaitTicks);
             cfg.maxWaitTicks = Math.max(cfg.minWaitTicks, cfg.maxWaitTicks);
+            cfg.joinViewDistance = Math.max(2, Math.min(cfg.joinViewDistance, 32));
+            cfg.restoreDelayTicks = Math.max(0, cfg.restoreDelayTicks);
             Files.writeString(PATH, GSON.toJson(cfg));
         } catch (IOException | RuntimeException e) {
             FastWorldJoinClient.LOGGER.warn("Could not read/write config, using defaults", e);
         }
         return cfg;
     }
-}
+                }
